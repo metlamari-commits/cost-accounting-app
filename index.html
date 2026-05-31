@@ -14,7 +14,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet"/>
 
-<!-- Inline SVG icons as data URIs via CSS -->
 <style>
 :root {
   --bg: #0f1117;
@@ -23,13 +22,10 @@
   --accent: #4f8ef7;
   --accent2: #7c5cfc;
   --green: #22c55e;
-  --red: #ef4444;
-  --amber: #f59e0b;
   --text: #f0f4ff;
   --text2: #8b93b0;
   --text3: #4a5278;
   --border: rgba(255,255,255,0.07);
-  --border2: rgba(79,142,247,0.3);
   --font: 'Sora', sans-serif;
   --mono: 'DM Mono', monospace;
   --radius: 14px;
@@ -284,33 +280,7 @@ html, body {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ─── INSTALL BANNER ─── */
-.install-banner {
-  margin: 0 0 12px;
-  padding: 12px 14px;
-  background: rgba(79,142,247,0.1);
-  border: 1px solid rgba(79,142,247,0.25);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-.install-banner .icon { font-size: 22px; }
-.install-banner .text { flex: 1; }
-.install-banner .text strong { display: block; font-size: 13px; font-weight: 600; }
-.install-banner .text span { font-size: 11px; color: var(--text2); }
-.install-banner .close-btn {
-  color: var(--text3);
-  font-size: 18px;
-  padding: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text2);
-}
-
-/* ─── STEP 1 ICON ─── */
+/* ─── STEP ICON ─── */
 .step-icon {
   width: 44px; height: 44px;
   border-radius: 12px;
@@ -454,10 +424,6 @@ html, body {
             <label>Αναμ. πωλήσεις (τεμ.)</label>
             <input id="expectedSales" type="number" value="600" inputmode="decimal"/>
           </div>
-          <div class="field">
-            <label>Μέγιστη παραγωγή</label>
-            <input id="maxCapacity" type="number" value="900" inputmode="decimal"/>
-          </div>
         </div>
       </div>
     </div>
@@ -470,10 +436,6 @@ html, body {
       <div class="card">
         <div class="card-label">Make vs Buy</div>
         <div class="grid2">
-          <div class="field">
-            <label>Κόστος παραγωγής/τεμ. (€)</label>
-            <input id="makeCost" type="number" value="18" inputmode="decimal"/>
-          </div>
           <div class="field">
             <label>Τιμή αγοράς/τεμ. (€)</label>
             <input id="buyCost" type="number" value="15" inputmode="decimal"/>
@@ -23655,7 +23617,6 @@ function buildPreview(){
   const bep=v('fixedCosts')/cm;
   const mos=v('expectedSales')-bep;
   const mosPct=(mos/v('expectedSales')*100);
-  const targetU=(v('fixedCosts')+v('targetProfit'))/cm;
   const actualP=v('expectedSales')*cm-v('fixedCosts');
   const relMake=v('relVarCost')*v('relQty')+v('oppCost');
   const relBuy=v('buyCost')*v('relQty')-v('fixedSaving');
