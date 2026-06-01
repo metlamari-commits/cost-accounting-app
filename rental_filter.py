@@ -1,3 +1,6 @@
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+
 # Ρυθμίσεις
 MAX_RENT = 500
 TARGET_AREAS = ["ωρωπός", "κάλαμος", "άγιοι απόστολοι"]
@@ -38,6 +41,45 @@ def filter_listings(listings):
     return sorted(results, key=lambda x: x.get("distance_km", 999))
 
 
+def export_to_excel(filtered, filename="αποτελέσματα_ενοικίων.xlsx"):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Αγγελίες"
+
+    header_fill = PatternFill("solid", fgColor="1F4E79")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    headers = ["Τίτλος", "Τιμή (€)", "Περιοχή", "Απόσταση από Μαλακάσα (km)"]
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    alt_fill = PatternFill("solid", fgColor="D6E4F0")
+    for row_idx, item in enumerate(filtered, 2):
+        fill = alt_fill if row_idx % 2 == 0 else PatternFill()
+        values = [
+            item["title"],
+            item["price"],
+            item["area"].title(),
+            item.get("distance_km", "N/A"),
+        ]
+        for col, val in enumerate(values, 1):
+            cell = ws.cell(row=row_idx, column=col, value=val)
+            cell.fill = fill
+            cell.alignment = Alignment(horizontal="left" if col == 1 else "center")
+
+    ws.column_dimensions["A"].width = 55
+    ws.column_dimensions["B"].width = 12
+    ws.column_dimensions["C"].width = 22
+    ws.column_dimensions["D"].width = 28
+    ws.row_dimensions[1].height = 20
+
+    wb.save(filename)
+    print(f"Excel αποθηκεύτηκε: {filename}")
+
+
 def main():
     filtered = filter_listings(listings)
 
@@ -47,6 +89,8 @@ def main():
         print(f"  Τιμή: {item['price']}€")
         print(f"  Περιοχή: {item['area']}")
         print(f"  Απόσταση από Μαλακάσα: {item.get('distance_km', 'N/A')} km\n")
+
+    export_to_excel(filtered)
 
 
 if __name__ == "__main__":
