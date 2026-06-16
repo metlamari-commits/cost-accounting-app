@@ -515,8 +515,13 @@ html, body {
       <button class="btn btn-generate" onclick="printReceipt()" style="margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e);">
         🧾 Εκτύπωση Απόδειξης (80mm)
       </button>
+      <button class="btn btn-generate" onclick="downloadReceipt()" style="margin-top:10px;background:linear-gradient(135deg,#7c5cfc,#4f8ef7);">
+        ⬇️ Λήψη Απόδειξης (80mm)
+      </button>
       <div style="text-align:center;font-size:12px;color:var(--text2);margin-top:8px;line-height:1.4">
-        Για τον θερμικό εκτυπωτή ZM01 (χαρτί 80mm).<br/>Στον διάλογο εκτύπωσης διάλεξε τον ZM01,<br/>ή «Αποθήκευση ως PDF».
+        Για τον θερμικό εκτυπωτή ZM01 (χαρτί 80mm).<br/>
+        «Εκτύπωση»: τυπώνει τώρα — διάλεξε τον ZM01 ή «Αποθήκευση ως PDF».<br/>
+        «Λήψη»: αποθηκεύει αρχείο που, μόλις το ανοίξεις, τυπώνει αυτόματα στα 80mm.
       </div>
     </div>
 
@@ -23835,18 +23840,19 @@ function calc(){
 
 function escHtml(t){ return String(t==null?'':t).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];}); }
 
-// Build & print an 80mm thermal receipt (ZM01). Choose the printer to print
-// directly, or "Save as PDF" in the dialog to get a receipt-sized PDF.
-function printReceipt(){
- try{
+// Build the 80mm thermal receipt HTML (ZM01). When autoPrint is true an inline
+// script is embedded so the saved file opens the print dialog automatically.
+function receiptHtml(autoPrint){
   const c=calc();
   const dec=c.relMake<=c.relBuy?'MAKE':'BUY';
   const d=new Date();
   const dt=d.toLocaleDateString('el-GR')+' '+d.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
   const row=(l,val,cls)=>'<div class="r '+(cls||'')+'"><span>'+escHtml(l)+'</span><span>'+escHtml(val)+'</span></div>';
   const cmRatio=(div(c.cm,v('sellingPrice'))*100).toFixed(1);
+  const auto=autoPrint?'<scr'+'ipt>window.onload=function(){setTimeout(function(){try{window.print();}catch(e){}},400);};</scr'+'ipt>':'';
 
-  const html='<!DOCTYPE html><html lang="el"><head><meta charset="UTF-8">'+
+  return '<!DOCTYPE html><html lang="el"><head><meta charset="UTF-8">'+
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">'+
     '<title>Απόδειξη</title><style>'+
     '@page{size:80mm auto;margin:0;}'+
     '*{box-sizing:border-box;}html,body{margin:0;padding:0;}body{width:80mm;background:#fff;}'+
@@ -23892,8 +23898,13 @@ function printReceipt(){
     row('Εξοικονόμηση',fmt(Math.abs(c.relMake-c.relBuy)))+
     '<div class="hr"></div>'+
     '<div class="c muted">Ευχαριστούμε!</div>'+
-    '</div></body></html>';
+    '</div>'+auto+'</body></html>';
+}
 
+// Open the receipt and trigger the print dialog (choose ZM01, or "Save as PDF").
+function printReceipt(){
+ try{
+  const html=receiptHtml(false);
   const w=window.open('','_blank','width=380,height=640');
   if(!w){ alert('Επίτρεψε τα αναδυόμενα παράθυρα (pop-ups) για να εκτυπώσεις την απόδειξη.'); return; }
   w.document.open(); w.document.write(html); w.document.close(); w.focus();
@@ -23901,6 +23912,25 @@ function printReceipt(){
   const go=function(){ if(done)return; done=true; try{ w.print(); }catch(_){ } };
   w.onload=go;
   setTimeout(go,600);
+ }catch(e){ alert('Σφάλμα: '+(e&&e.message||e)); }
+}
+
+// Download a self-contained 80mm receipt file. When opened (double-click) it
+// auto-opens the print dialog already sized to 80mm — print on the ZM01 or
+// choose "Save as PDF" to keep a receipt-sized PDF.
+function downloadReceipt(){
+ try{
+  const html=receiptHtml(true);
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const name='Apodeixi_'+((s('jobNo')||s('company')||'receipt').replace(/[^\w.-]+/g,'_'))+'.html';
+  if(typeof saveAs==='function'){ saveAs(blob,name); }
+  else{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{document.body.removeChild(a);}catch(_){ } URL.revokeObjectURL(url); },1000);
+  }
+  showToast('✓ Η απόδειξη κατεβαίνει (80mm)');
  }catch(e){ alert('Σφάλμα: '+(e&&e.message||e)); }
 }
 
