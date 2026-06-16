@@ -512,6 +512,12 @@ html, body {
         </svg>
         Λήψη Word Document
       </button>
+      <button class="btn btn-generate" onclick="printReceipt()" style="margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e);">
+        🧾 Εκτύπωση Απόδειξης (80mm)
+      </button>
+      <div style="text-align:center;font-size:12px;color:var(--text2);margin-top:8px;line-height:1.4">
+        Για τον θερμικό εκτυπωτή ZM01 (χαρτί 80mm).<br/>Στον διάλογο εκτύπωσης διάλεξε τον ZM01,<br/>ή «Αποθήκευση ως PDF».
+      </div>
     </div>
 
   </div><!-- /content -->
@@ -23807,6 +23813,94 @@ function generateDoc(){
     saveAs(blob, (s('company')||'Report').replace(/\s+/g,'_')+'_Cost_Accounting.docx');
     showToast('✓ Το αρχείο κατεβαίνει!');
   }).catch(e=>alert('Σφάλμα: '+(e&&e.message||e)));
+ }catch(e){ alert('Σφάλμα: '+(e&&e.message||e)); }
+}
+
+// Shared calculations (used by the 80mm thermal receipt)
+function calc(){
+  const fabricTotal=v('fabricPrice')*v('fabricQty');
+  const labourTotal=v('labourHours')*v('labourRate');
+  const overhead=v('labourHours')*v('overheadRate');
+  const jobTotal=fabricTotal+labourTotal+overhead+v('repairCost');
+  const sellingP=jobTotal*(1+v('markup')/100);
+  const cm=v('sellingPrice')-v('varCost');
+  const bep=div(v('fixedCosts'),cm);
+  const mos=v('expectedSales')-bep;
+  const mosPct=div(mos,v('expectedSales'))*100;
+  const actualP=v('expectedSales')*cm-v('fixedCosts');
+  const relMake=v('relVarCost')*v('relQty')+v('oppCost');
+  const relBuy=v('buyCost')*v('relQty')-v('fixedSaving');
+  return {fabricTotal,labourTotal,overhead,jobTotal,sellingP,cm,bep,mos,mosPct,actualP,relMake,relBuy};
+}
+
+function escHtml(t){ return String(t==null?'':t).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];}); }
+
+// Build & print an 80mm thermal receipt (ZM01). Choose the printer to print
+// directly, or "Save as PDF" in the dialog to get a receipt-sized PDF.
+function printReceipt(){
+ try{
+  const c=calc();
+  const dec=c.relMake<=c.relBuy?'MAKE':'BUY';
+  const d=new Date();
+  const dt=d.toLocaleDateString('el-GR')+' '+d.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+  const row=(l,val,cls)=>'<div class="r '+(cls||'')+'"><span>'+escHtml(l)+'</span><span>'+escHtml(val)+'</span></div>';
+  const cmRatio=(div(c.cm,v('sellingPrice'))*100).toFixed(1);
+
+  const html='<!DOCTYPE html><html lang="el"><head><meta charset="UTF-8">'+
+    '<title>Απόδειξη</title><style>'+
+    '@page{size:80mm auto;margin:0;}'+
+    '*{box-sizing:border-box;}html,body{margin:0;padding:0;}body{width:80mm;background:#fff;}'+
+    '.receipt{width:72mm;margin:0 auto;padding:4mm 0 7mm;color:#000;'+
+    "font-family:ui-monospace,'DM Mono','Courier New',monospace;font-size:12px;line-height:1.45;}"+
+    '.c{text-align:center;}.title{font-weight:700;font-size:15px;margin-bottom:2px;}'+
+    '.sub{font-size:11px;}.muted{font-size:10px;}'+
+    '.sec{font-weight:700;margin:6px 0 2px;}'+
+    '.r{display:flex;justify-content:space-between;gap:6px;}'+
+    '.r span:last-child{text-align:right;white-space:nowrap;}'+
+    '.tot{font-weight:700;}'+
+    '.hr{border-top:1px dashed #000;margin:5px 0;}'+
+    '.dec{text-align:center;font-weight:700;font-size:14px;margin:5px 0;border:1px solid #000;padding:3px;}'+
+    '</style></head><body><div class="receipt">'+
+    '<div class="c title">'+escHtml(s('company')||'—')+'</div>'+
+    '<div class="c sub">Cost &amp; Management Accounting</div>'+
+    '<div class="c muted">'+escHtml(s('course'))+'</div>'+
+    '<div class="c muted">Έτος: '+escHtml(s('year'))+(s('student')?' | '+escHtml(s('student')):'')+'</div>'+
+    '<div class="c muted">'+escHtml(dt)+'</div>'+
+    '<div class="hr"></div>'+
+    '<div class="sec">1. Job Costing — '+escHtml(s('jobNo'))+'</div>'+
+    row('Άμεσα Υλικά',fmt(c.fabricTotal))+
+    row('Άμεση Εργασία',fmt(c.labourTotal))+
+    row('Overhead',fmt(c.overhead))+
+    row('Επισκευές',fmt(v('repairCost')))+
+    '<div class="hr"></div>'+
+    row('Συν. Κόστος',fmt(c.jobTotal),'tot')+
+    row('Τιμή Πώλησης (+'+num(v('markup'))+'%)',fmt(c.sellingP),'tot')+
+    '<div class="hr"></div>'+
+    '<div class="sec">2. CVP Ανάλυση</div>'+
+    row('Contribution Margin',fmt(c.cm)+'/τεμ')+
+    row('CM Ratio',cmRatio+'%')+
+    row('Break-Even',c.bep.toFixed(0)+' τεμ')+
+    row('Break-Even €',fmt(c.bep*v('sellingPrice')))+
+    row('Margin of Safety',c.mosPct.toFixed(1)+'%')+
+    row('Αναμ. Κέρδος',fmt(c.actualP),'tot')+
+    '<div class="hr"></div>'+
+    '<div class="sec">3. Make or Buy</div>'+
+    row('Κόστος MAKE',fmt(c.relMake))+
+    row('Κόστος BUY',fmt(c.relBuy))+
+    '<div class="dec">Απόφαση: '+dec+'</div>'+
+    row('Ποσότητα',num(v('relQty'))+' τεμ')+
+    row('Εξοικονόμηση',fmt(Math.abs(c.relMake-c.relBuy)))+
+    '<div class="hr"></div>'+
+    '<div class="c muted">Ευχαριστούμε!</div>'+
+    '</div></body></html>';
+
+  const w=window.open('','_blank','width=380,height=640');
+  if(!w){ alert('Επίτρεψε τα αναδυόμενα παράθυρα (pop-ups) για να εκτυπώσεις την απόδειξη.'); return; }
+  w.document.open(); w.document.write(html); w.document.close(); w.focus();
+  let done=false;
+  const go=function(){ if(done)return; done=true; try{ w.print(); }catch(_){ } };
+  w.onload=go;
+  setTimeout(go,600);
  }catch(e){ alert('Σφάλμα: '+(e&&e.message||e)); }
 }
 
