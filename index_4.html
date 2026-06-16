@@ -23611,10 +23611,10 @@ let current = 0;
 const STEPS = 5;
 
 function goTo(n) {
-  document.getElementById('panel'+current).classList.remove('active');
+  const cur=document.getElementById('panel'+current); if(cur) cur.classList.remove('active');
   current = n;
-  document.getElementById('panel'+current).classList.add('active');
-  document.getElementById('mainContent').scrollTop = 0;
+  const nxt=document.getElementById('panel'+current); if(nxt) nxt.classList.add('active');
+  const mc=document.getElementById('mainContent'); if(mc) mc.scrollTop = 0;
 
   // progress
   document.getElementById('progressFill').style.width = ((n+1)/STEPS*100)+'%';
@@ -23641,21 +23641,24 @@ function goTo(n) {
 function goNext(){ if(current<STEPS-1) goTo(current+1); }
 function goBack(){ if(current>0) goTo(current-1); }
 
-function v(id){ return parseFloat(document.getElementById(id).value)||0; }
-function s(id){ return document.getElementById(id).value||''; }
-function fmt(n){ return '€'+n.toFixed(2); }
+function v(id){ const el=document.getElementById(id); const n=el?parseFloat(el.value):NaN; return isFinite(n)?n:0; }
+function s(id){ const el=document.getElementById(id); return el?(el.value||''):''; }
+function num(n){ return isFinite(n)?n:0; }          // never let NaN/Infinity leak into the UI
+function div(a,b){ return b?num(a/b):0; }            // safe division (no Infinity on /0)
+function fmt(n){ return '€'+num(n).toFixed(2); }
 
 function buildPreview(){
+ try{
   const fabricTotal=v('fabricPrice')*v('fabricQty');
   const labourTotal=v('labourHours')*v('labourRate');
   const overhead=v('labourHours')*v('overheadRate');
   const jobTotal=fabricTotal+labourTotal+overhead+v('repairCost');
   const sellingP=jobTotal*(1+v('markup')/100);
   const cm=v('sellingPrice')-v('varCost');
-  const bep=v('fixedCosts')/cm;
+  const bep=div(v('fixedCosts'),cm);
   const mos=v('expectedSales')-bep;
-  const mosPct=(mos/v('expectedSales')*100);
-  const targetU=(v('fixedCosts')+v('targetProfit'))/cm;
+  const mosPct=div(mos,v('expectedSales'))*100;
+  const targetU=div(v('fixedCosts')+v('targetProfit'),cm);
   const actualP=v('expectedSales')*cm-v('fixedCosts');
   const relMake=v('relVarCost')*v('relQty')+v('oppCost');
   const relBuy=v('buyCost')*v('relQty')-v('fixedSaving');
@@ -23683,6 +23686,10 @@ function buildPreview(){
       <div class="preview-row"><span class="label">Κόστος BUY</span><span class="val">${fmt(relBuy)}</span></div>
       <div class="preview-row decision total"><span class="label">Απόφαση</span><span class="val">${dec}</span></div>
     </div>`;
+ }catch(e){
+  const box=document.getElementById('previewBox');
+  if(box) box.innerHTML='<div class="preview-row"><span class="label">Σφάλμα στην προεπισκόπηση</span><span class="val">'+(e&&e.message||e)+'</span></div>';
+ }
 }
 
 function showToast(msg){
@@ -23692,6 +23699,8 @@ function showToast(msg){
 }
 
 function generateDoc(){
+ try{
+  if(typeof docx==='undefined'){ alert('Σφάλμα: η βιβλιοθήκη δημιουργίας Word δεν φόρτωσε. Άνοιξε ξανά τη σελίδα.'); return; }
   const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,
     AlignmentType,HeadingLevel,BorderStyle,WidthType,ShadingType}=docx;
 
@@ -23701,10 +23710,10 @@ function generateDoc(){
   const jobTotal=fabricTotal+labourTotal+overhead+v('repairCost');
   const sellingP=jobTotal*(1+v('markup')/100);
   const cm=v('sellingPrice')-v('varCost');
-  const bep=v('fixedCosts')/cm;
+  const bep=div(v('fixedCosts'),cm);
   const mos=v('expectedSales')-bep;
-  const mosPct=(mos/v('expectedSales')*100);
-  const targetU=(v('fixedCosts')+v('targetProfit'))/cm;
+  const mosPct=div(mos,v('expectedSales'))*100;
+  const targetU=div(v('fixedCosts')+v('targetProfit'),cm);
   const actualP=v('expectedSales')*cm-v('fixedCosts');
   const relMake=v('relVarCost')*v('relQty')+v('oppCost');
   const relBuy=v('buyCost')*v('relQty')-v('fixedSaving');
@@ -23761,7 +23770,7 @@ function generateDoc(){
         new Table({width:{size:9638,type:WidthType.DXA},columnWidths:[6500,3138],rows:[
           new TableRow({tableHeader:true,children:[hCell('Στοιχείο CVP',6500),hCell('Αποτέλεσμα',3138)]}),
           new TableRow({children:[rCell('Contribution Margin / τεμάχιο',6500,false,false),rCell('€'+cm.toFixed(2),3138,false,true)]}),
-          new TableRow({children:[rCell('CM Ratio',6500,true,false),rCell((cm/v('sellingPrice')*100).toFixed(1)+'%',3138,true,true)]}),
+          new TableRow({children:[rCell('CM Ratio',6500,true,false),rCell((div(cm,v('sellingPrice'))*100).toFixed(1)+'%',3138,true,true)]}),
           new TableRow({children:[tCell('Break-Even Point (τεμάχια)',6500,false),tCell(bep.toFixed(0)+' τεμ.',3138,true)]}),
           new TableRow({children:[tCell('Break-Even Point (€)',6500,false),tCell('€'+(bep*v('sellingPrice')).toFixed(2),3138,true)]}),
           new TableRow({children:[rCell('Αναμενόμενες Πωλήσεις',6500,false,false),rCell(v('expectedSales')+' τεμ.',3138,false,true)]}),
@@ -23795,10 +23804,19 @@ function generateDoc(){
   });
 
   Packer.toBlob(doc).then(blob=>{
-    saveAs(blob, s('company').replace(/\s+/g,'_')+'_Cost_Accounting.docx');
+    saveAs(blob, (s('company')||'Report').replace(/\s+/g,'_')+'_Cost_Accounting.docx');
     showToast('✓ Το αρχείο κατεβαίνει!');
-  }).catch(e=>alert('Σφάλμα: '+e.message));
+  }).catch(e=>alert('Σφάλμα: '+(e&&e.message||e)));
+ }catch(e){ alert('Σφάλμα: '+(e&&e.message||e)); }
 }
+
+// Keep the app alive: surface unexpected errors instead of silently freezing.
+window.addEventListener('error', function(ev){
+  try{ showToast('⚠ Σφάλμα: '+((ev.error&&ev.error.message)||ev.message||'')); }catch(_){}
+});
+window.addEventListener('unhandledrejection', function(ev){
+  try{ showToast('⚠ Σφάλμα: '+((ev.reason&&ev.reason.message)||ev.reason||'')); }catch(_){}
+});
 
 // Service Worker for PWA (offline)
 if('serviceWorker' in navigator){
