@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* Light theme, violet accent (Brief §7). */
+:root {
+  --background: #f7f7fb;
+  --surface: #ffffff;
+  --foreground: #1a1a23;
+  --muted: #6b6b7b;
+  --border: #e8e8ef;
+  --accent: #7c3aed;       /* violet-600 */
+  --accent-foreground: #ffffff;
+  --accent-soft: #f3eefe;
+  --green: #16a34a;
+  --amber: #d97706;
+  --blue: #2563eb;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-blue: var(--blue);
+  --font-sans: var(--font-sans);
+  --radius-xl: 0.875rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
