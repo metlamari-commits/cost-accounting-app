@@ -88,3 +88,73 @@ UUID primary keys, created_at/updated_at everywhere, Row-Level Security so rows 
 4.5 **Timeline** — vertical, grouped by year, events clickable → open linked session.
 
 4.6 **Library** — upload PDF/DOCX/EPUB/article
+
+4.7 **AI Clinical Consultant** — second chat mode combining client record + library via RAG. Cites both history and book chunks.
+
+4.8 **Clinical Suggestions panel** — intervention ideas grouped by modality: CBT · ACT · Schema Therapy · DBT · EFT.
+
+4.9 **Clinical Formulation button** — generates + stores the 5 Ps: Παρουσιαζόμενο πρόβλημα, Προδιαθεσικοί, Εκλυτικοί, Διαιωνίζοντες, Προστατευτικοί παράγοντες + θεραπευτικοί στόχοι + πιθανές παρεμβάσεις. Auto-updates as sessions are added.
+
+4.10 **Session briefing** — before a session: last session summary, open homework, recurring themes, suggested goals.
+
+4.11 **Assessments & Statistics** — score PHQ-9/GAD-7/PCL-5/DASS-21/CORE-OM, chart progress (Recharts), per-client stats.
+
+4.12 **Global search** — across all clients/sessions/facts.
+
+4.13 **Voice capture (phase 3)** — record → Whisper → draft notes → history update → summary.
+
+---
+
+## 5. AI architecture
+
+Wrap ALL model calls in one module (lib/ai.ts) for provider-swap + pseudonymisation + audit in one place.
+
+- **Pseudonymisation pipeline (mandatory):** replace real identifiers with stable tokens before sending to the LLM; re-map only in the rendered UI, never in transit.
+- **RAG retrieval:** per-client chat retrieves from session_embeddings + facts + history_sections for that client_id only. Clinical consultant retrieves from document_chunks (library) AND the active client's context.
+- **On session completion:** generateSessionAnalysis → session_analyses; extractFacts → candidate facts + significant-event detection → ai_suggestions (pending); embedSession → session_embeddings.
+- **Grounding rule:** answer only from retrieved context, say so when info is missing, never fabricate clinical facts, always show sources.
+
+---
+
+## 6. Security & GDPR (build in phase 1)
+
+- Auth: Supabase Auth, email+password, TOTP 2FA required.
+- RLS: every table scoped by therapist_id; deny-by-default.
+- Encryption: TLS in transit; encrypt clients.full_name and direct identifiers at app layer (plus at-rest).
+- Audit logs of reads/writes of clinical records.
+- EU residency: Supabase EU project; LLM/embeddings via EU endpoint; Vercel EU region. Sign DPAs with every processor.
+- Patient rights: export a client's full record; hard-delete a client (incl. embeddings + storage files).
+- AI consent setting documenting that pseudonymised data is processed by an AI provider.
+- Automated encrypted backups; tested restore.
+- Keep a short SECURITY.md.
+
+---
+
+## 7. Design direction (match the mockups)
+
+- Light theme, generous whitespace, rounded-xl cards, soft shadows.
+- Primary accent: violet/purple (active sidebar item, primary buttons, chips).
+- Left sidebar: logo "PsyAssist AI" + heart-brain icon; nav: Dashboard, Πελάτες, Συνεδρίες, Ημερολόγιο, AI Assistant, Βιβλιοθήκη, Αξιολογήσεις, Στατιστικά, Ρυθμίσεις; therapist profile pinned at bottom.
+- Status badges with semantic colours (green = ολοκληρωμένη, amber = εκκρεμές, blue = προγραμματισμένη).
+- Tabbed sub-navigation inside client/session pages.
+- Fully Greek UI strings via a single el.ts locale file.
+
+---
+
+## 8. Build order
+
+**Phase 1 — Foundation (no AI):** Auth + 2FA, RLS, data model + migrations, Dashboard, Clients CRUD, Client profile with tabs, Sessions CRUD with structured fields, manual history sections, global search, Greek locale, audit logging, GDPR export/delete. Ship this first.
+
+**Phase 2 — AI core:** lib/ai.ts wrapper + pseudonymisation, session analysis, fact extraction + ai_suggestions approval flow, per-client RAG chat with citations, dynamic history auto-update, timeline.
+
+**Phase 3 — Knowledge & advanced:** Library upload + indexing, Clinical Consultant, Clinical Suggestions, Clinical Formulation, session briefing, assessments + charts, voice capture.
+
+---
+
+## 9. Definition of done per feature
+
+- TypeScript strict, no `any` on data models.
+- RLS policy + test for every new table.
+- AI features show sources and never write to clinical tables without explicit therapist approval.
+- All user-facing text in Greek via the locale file.
+- Audit log entry for every clinical-record mutation.
